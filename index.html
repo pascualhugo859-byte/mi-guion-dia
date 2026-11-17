@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi Día">
+<meta name="theme-color" content="#0d0d12">
+<title>Mi Día</title>
+<style>
+:root{--bg:#0d0d12;--card:#1a1a22;--card2:#23232e;--text:#f2f2f7;--muted:#8e8e9a;--accent:#7c5cff;--ok:#34c759;--danger:#ff453a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;padding-top:env(safe-area-inset-top);padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+header{padding:20px 20px 8px}
+header h1{margin:0;font-size:28px}
+header p{margin:4px 0 0;color:var(--muted);font-size:14px;text-transform:capitalize}
+.tab{display:none;padding:12px 16px}
+.tab.active{display:block}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(26,26,34,.95);backdrop-filter:blur(20px);padding-bottom:env(safe-area-inset-bottom);border-top:1px solid #2c2c38}
+nav button{flex:1;background:none;border:none;color:var(--muted);padding:14px 0;font-size:15px;font-weight:600}
+nav button.active{color:var(--accent)}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px}
+.row{display:flex;gap:8px;margin-bottom:8px}
+input,textarea{width:100%;background:var(--card2);border:none;border-radius:10px;color:var(--text);padding:12px;font-size:16px;font-family:inherit}
+textarea{min-height:70px;resize:vertical}
+input[type=time]{width:130px}
+button.main{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 16px;font-size:16px;font-weight:600;width:100%}
+button.small{background:var(--card2);color:var(--text);border:none;border-radius:8px;padding:8px 12px;font-size:14px}
+.task{display:flex;align-items:center;gap:12px}
+.task .time{color:var(--accent);font-weight:700;min-width:54px}
+.task .txt{flex:1}
+.task.done .txt{text-decoration:line-through;color:var(--muted)}
+.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--muted);background:none;flex-shrink:0}
+.task.done .check{background:var(--ok);border-color:var(--ok)}
+.del{background:none;border:none;color:var(--danger);font-size:20px}
+.clip h3{margin:0 0 6px;font-size:17px}
+.clip p{margin:0 0 10px;color:var(--muted);white-space:pre-wrap;font-size:15px}
+.clip video{width:100%;border-radius:10px;margin-bottom:10px;background:#000}
+.empty{text-align:center;color:var(--muted);padding:30px 0}
+.file{color:var(--muted);font-size:14px;margin:8px 0}
+#aviso{color:#ffb340;font-size:13px;margin:6px 0}
+</style>
+</head>
+<body>
+<header><h1>Mi Día</h1><p id="fecha"></p></header>
+
+<section id="hoy" class="tab active">
+  <div class="card">
+    <div class="row"><input id="tTexto" placeholder="¿Qué tienes que hacer?"><input id="tHora" type="time"></div>
+    <button class="main" onclick="addTarea()">Añadir tarea</button>
+  </div>
+  <div id="listaTareas"></div>
+</section>
+
+<section id="clipping" class="tab">
+  <div class="card">
+    <input id="cTitulo" placeholder="Título del clip" style="margin-bottom:8px">
+    <textarea id="cNotas" placeholder="Notas, idea, guion..." style="margin-bottom:8px"></textarea>
+    <input id="cVideo" type="file" accept="video/*" style="margin-bottom:6px">
+    <div id="aviso"></div>
+    <button class="main" onclick="addClip()">Guardar clip</button>
+  </div>
+  <div id="listaClips"></div>
+</section>
+
+<nav>
+  <button id="nHoy" class="active" onclick="ver('hoy')">Hoy</button>
+  <button id="nClip" onclick="ver('clipping')">Clipping</button>
+</nav>
+
+<script>
+const $=id=>document.getElementById(id);
+let tareas=JSON.parse(localStorage.getItem('tareas')||'[]');
+
+function ver(t){
+  document.querySelectorAll('.tab').forEach(s=>s.classList.remove('active'));
+  $(t).classList.add('active');
+  $('nHoy').classList.toggle('active',t==='hoy');
+  $('nClip').classList.toggle('active',t==='clipping');
+}
+$('fecha').textContent=new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+
+function guardarTareas(){localStorage.setItem('tareas',JSON.stringify(tareas));pintarTareas()}
+function addTarea(){
+  const txt=$('tTexto').value.trim();
+  if(!txt)return;
+  tareas.push({id:Date.now(),txt,hora:$('tHora').value,hecha:false});
+  $('tTexto').value='';$('tHora').value='';
+  guardarTareas();
+}
+function toggleTarea(id){const t=tareas.find(x=>x.id===id);t.hecha=!t.hecha;guardarTareas()}
+function borrarTarea(id){tareas=tareas.filter(x=>x.id!==id);guardarTareas()}
+function pintarTareas(){
+  const ord=[...tareas].sort((a,b)=>(a.hora||'99:99').localeCompare(b.hora||'99:99'));
+  $('listaTareas').innerHTML=ord.length?ord.map(t=>`
+    <div class="card task ${t.hecha?'done':''}">
+      <button class="check" onclick="toggleTarea(${t.id})"></button>
+      <span class="time">${t.hora||'--:--'}</span>
+      <span class="txt">${t.txt.replace(/</g,'&lt;')}</span>
+      <button class="del" onclick="borrarTarea(${t.id})">×</button>
+    </div>`).join(''):'<div class="empty">No tienes tareas. ¡Añade la primera!</div>';
+}
+
+// ---- Clipping (IndexedDB para guardar vídeos pesados) ----
+let db;
+const req=indexedDB.open('clipping',1);
+req.onupgradeneeded=e=>e.target.result.createObjectStore('clips',{keyPath:'id'});
+req.onsuccess=e=>{db=e.target.result;pintarClips()};
+
+function addClip(){
+  const titulo=$('cTitulo').value.trim();
+  if(!titulo)return;
+  const clip={id:Date.now(),titulo,notas:$('cNotas').value.trim(),video:$('cVideo').files[0]||null};
+  const tx=db.transaction('clips','readwrite');
+  tx.objectStore('clips').add(clip);
+  tx.oncomplete=()=>{$('cTitulo').value='';$('cNotas').value='';$('cVideo').value='';pintarClips();avisoEspacio()};
+  tx.onerror=()=>{$('aviso').textContent='No se pudo guardar: puede que el iPhone se haya quedado sin espacio.'};
+}
+function borrarClip(id){
+  const tx=db.transaction('clips','readwrite');
+  tx.objectStore('clips').delete(id);
+  tx.oncomplete=pintarClips;
+}
+function pintarClips(){
+  db.transaction('clips').objectStore('clips').getAll().onsuccess=e=>{
+    const clips=e.target.result.reverse();
+    $('listaClips').innerHTML=clips.length?'':'<div class="empty">Aún no hay clips. Guarda tu primera idea.</div>';
+    clips.forEach(c=>{
+      const d=document.createElement('div');d.className='card clip';
+      const h=document.createElement('h3');h.textContent=c.titulo;d.appendChild(h);
+      if(c.video){const v=document.createElement('video');v.controls=true;v.playsInline=true;v.src=URL.createObjectURL(c.video);d.appendChild(v)}
+      if(c.notas){const p=document.createElement('p');p.textContent=c.notas;d.appendChild(p)}
+      const b=document.createElement('button');b.className='small';b.textContent='Borrar';b.onclick=()=>borrarClip(c.id);d.appendChild(b);
+      $('listaClips').appendChild(d);
+    });
+  };
+}
+async function avisoEspacio(){
+  if(navigator.storage&&navigator.storage.estimate){
+    const {usage,quota}=await navigator.storage.estimate();
+    if(quota&&usage/quota>0.8)$('aviso').textContent='Se está llenando el espacio de la app. Borra clips viejos.';
+    else $('aviso').textContent='';
+  }
+}
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+pintarTareas();
+</script>
+</body>
+</html>
